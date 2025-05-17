@@ -9,7 +9,7 @@ def scrape_notices(site_name, base_url, notified_ids):
 
     for offset in range(0, 30, 10):
         url = f"{base_url}?mode=list&articleLimit=10&article.offset={offset}"
-        print(f"📄 요청 중: {url}")
+        print(f"요청 중: {url}")
 
         try:
             response = requests.get(url, headers=headers)

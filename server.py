@@ -9,6 +9,4 @@ app = FastAPI()
 def run_script():
     print("🚀 main.py 실행 시작")
     result = subprocess.run(["python", "main.py"], capture_output=True, text=True)
-    print("📤 stdout:\n", result.stdout)
-    print("📛 stderr:\n", result.stderr)
     return result.stdout + "\n" + result.stderr
