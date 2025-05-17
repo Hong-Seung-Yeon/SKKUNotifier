@@ -1,48 +1,44 @@
-# crawler.py (requests + BeautifulSoup 기반)
+# crawler.py
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse, parse_qs
+from urllib.parse import urljoin
 
-def extract_article_id(url):
-    query = parse_qs(urlparse(url).query)
-    return query.get("articleNo", [None])[0]
-
-def scrape_notices(site_name, base_url, existing_ids, max_pages=3):
-    print(f"\n===== {site_name} 공지사항 =====\n")
+def scrape_notices(site_name, base_url, notified_ids):
+    headers = {"User-Agent": "Mozilla/5.0"}
     new_posts = []
 
-    for page in range(max_pages):
-        offset = page * 10
+    for offset in range(0, 30, 10):
         url = f"{base_url}?mode=list&articleLimit=10&article.offset={offset}"
         print(f"📄 요청 중: {url}")
 
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-        }
-        response = requests.get(url, headers=headers)
-
-        if response.status_code != 200:
-            print(f"❌ 페이지 로딩 실패: {response.status_code}")
-            continue
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"❌ [{site_name}] 요청 실패: {e}")
+            return []
 
         soup = BeautifulSoup(response.text, "html.parser")
-        titles = soup.select("dt.board-list-content-title a")
-        dates = soup.select("dd.board-list-content-info li:nth-of-type(3)")
+        notice_items = soup.select("ul.board-list-wrap > li")
 
-        if not titles:
-            print("⚠️ 게시글 없음 (더 이상 페이지가 없을 수 있음)")
-            break
+        for item in notice_items:
+            title_tag = item.select_one(".board-list-content-title a")
+            date_tag = item.select_one(".board-list-content-info li:nth-child(3)")
 
-        for tag, date_tag in zip(titles, dates):
-            title = tag.get_text(strip=True)
-            href = urljoin(base_url, tag.get("href"))
-            article_id = extract_article_id(href)
-            date = date_tag.get_text(strip=True)
-
-            if article_id in existing_ids:
+            if not title_tag:
                 continue
 
-            print(f"📌 {title}\n📅 {date}\n🔗 {href}\n\n")
-            new_posts.append((article_id, title, href, date))
+            post_title = title_tag.get_text(strip=True)
+            post_link = urljoin(base_url, title_tag['href'])
+            post_id = post_link.split("articleNo=")[-1].split("&")[0]
+            post_date = date_tag.get_text(strip=True) if date_tag else "N/A"
+
+            if post_id not in notified_ids:
+                new_posts.append({
+                    "id": post_id,
+                    "title": post_title,
+                    "link": post_link,
+                    "date": post_date
+                })
 
     return new_posts
